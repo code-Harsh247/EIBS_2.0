@@ -1,0 +1,294 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true)
+  emailVerified Boolean   @default(false)
+  
+  companyId     String?
+  company       Company?  @relation(fields: [companyId], references: [id])
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+
+  // Relations
+  createdInvoices   Invoice[]   @relation("InvoiceCreator")
+  auditLogs         AuditLog[]
+  sessions          Session[]
+
+  @@index([email])
+  @@index([companyId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  @@index([token])
+  @@index([userId])
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  ACCOUNTANT
+  AUDITOR
+}
+
+// ============================================
+// COMPANY
+// ============================================
+
+model Company {
+  id              String        @id @default(cuid())
+  name            String
+  registrationNo  String        @unique
+  taxId           String?
+  address         String?
+  city            String?
+  state           String?
+  country         String?
+  postalCode      String?
+  phone           String?
+  email           String?
+  website         String?
+  logoUrl         String?
+  isActive        Boolean       @default(true)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  users           User[]
+  soldInvoices    Invoice[]     @relation("SellerCompany")
+  boughtInvoices  Invoice[]     @relation("BuyerCompany")
+  
+  // Blockchain wallet
+  walletAddress   String?
+
+  @@index([registrationNo])
+  @@index([name])
+}
+
+// ============================================
+// INVOICE
+// ============================================
+
+model Invoice {
+  id              String          @id @default(cuid())
+  invoiceNumber   String          @unique
+  
+  // Parties
+  sellerId        String
+  seller          Company         @relation("SellerCompany", fields: [sellerId], references: [id])
+  buyerId         String
+  buyer           Company         @relation("BuyerCompany", fields: [buyerId], references: [id])
+  
+  // Creator
+  createdById     String
+  createdBy       User            @relation("InvoiceCreator", fields: [createdById], references: [id])
+  
+  // Dates
+  issueDate       DateTime
+  dueDate         DateTime
+  
+  // Financial
+  subtotal        Decimal         @db.Decimal(15, 2)
+  taxAmount       Decimal         @db.Decimal(15, 2)
+  discountAmount  Decimal         @default(0) @db.Decimal(15, 2)
+  totalAmount     Decimal         @db.Decimal(15, 2)
+  currency        String          @default("USD")
+  
+  // Status
+  status          InvoiceStatus   @default(DRAFT)
+  paymentStatus   PaymentStatus   @default(UNPAID)
+  
+  // Additional Info
+  notes           String?
+  terms           String?
+  
+  // Blockchain
+  blockchainHash  String?
+  blockchainTxId  String?
+  isVerified      Boolean         @default(false)
+  verifiedAt      DateTime?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  items           InvoiceItem[]
+  blockchainTx    BlockchainTransaction?
+  auditLogs       AuditLog[]
+  payments        Payment[]
+
+  @@index([invoiceNumber])
+  @@index([sellerId])
+  @@index([buyerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  description String
+  quantity    Decimal  @db.Decimal(10, 2)
+  unitPrice   Decimal  @db.Decimal(15, 2)
+  taxRate     Decimal  @default(0) @db.Decimal(5, 2)
+  amount      Decimal  @db.Decimal(15, 2)
+  
+  productCode String?
+  unit        String?  @default("pcs")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([invoiceId])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  ARCHIVED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+  REFUNDED
+}
+
+// ============================================
+// PAYMENT
+// ============================================
+
+model Payment {
+  id            String        @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+  
+  amount        Decimal       @db.Decimal(15, 2)
+  paymentDate   DateTime
+  paymentMethod String?
+  reference     String?
+  notes         String?
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([invoiceId])
+}
+
+// ============================================
+// BLOCKCHAIN
+// ============================================
+
+model BlockchainTransaction {
+  id              String              @id @default(cuid())
+  invoiceId       String              @unique
+  invoice         Invoice             @relation(fields: [invoiceId], references: [id])
+  
+  transactionHash String              @unique
+  blockNumber     Int?
+  networkId       String
+  contractAddress String?
+  
+  invoiceHash     String              // SHA-256 hash of invoice data
+  status          BlockchainTxStatus  @default(PENDING)
+  
+  gasUsed         String?
+  gasPrice        String?
+  
+  errorMessage    String?
+  
+  createdAt       DateTime            @default(now())
+  confirmedAt     DateTime?
+
+  @@index([transactionHash])
+  @@index([invoiceHash])
+}
+
+enum BlockchainTxStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id])
+  
+  invoiceId   String?
+  invoice     Invoice?    @relation(fields: [invoiceId], references: [id])
+  
+  action      AuditAction
+  entityType  String
+  entityId    String
+  
+  oldValue    Json?
+  newValue    Json?
+  
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime    @default(now())
+
+  @@index([userId])
+  @@index([invoiceId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  EXPORT
+  VERIFY
+  APPROVE
+  REJECT
+  LOGIN
+  LOGOUT
+}
