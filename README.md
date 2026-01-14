@@ -1,4 +1,4 @@
-# EIBS 2.0 - Enterprise Invoice Blockchain System
+# Liquid - Enterprise Invoice Blockchain System
 
 A secure invoice management platform with blockchain verification built with Next.js 14, Prisma, and Ethereum.
 

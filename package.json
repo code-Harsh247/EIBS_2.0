@@ -1,7 +1,7 @@
 {
-  "name": "eibs-2.0",
+  "name": "liquid",
   "version": "1.0.0",
-  "description": "Enterprise Invoice Blockchain System - A secure invoice management platform with blockchain verification",
+  "description": "Liquid - A secure invoice management platform with blockchain verification",
   "private": true,
   "scripts": {
     "dev": "next dev",

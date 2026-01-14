@@ -5,7 +5,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'EIBS 2.0 - Enterprise Invoice Blockchain System',
+  title: 'Liquid - Enterprise Invoice Blockchain System',
   description: 'Secure invoice management with blockchain verification',
 };
 
