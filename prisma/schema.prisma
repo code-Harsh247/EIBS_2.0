@@ -134,6 +134,9 @@ model Invoice {
   notes           String?
   terms           String?
   
+  // PDF Support
+  pdfUrl            String?                // Supabase Storage URL for uploaded PDF
+
   // Split Metadata Privacy Architecture
   documentHash      String?       @unique  // SHA-256 hash of private data (for blockchain integrity)
   riskScore         Int?                   // Verification/risk score (0-100, lower is better)

@@ -72,8 +72,12 @@ class IPFSService {
   /**
    * Generate a deterministic document hash from private invoice data
    * This hash is stored on-chain for integrity verification
+   * 
+   * @param privateData - Invoice private data
+   * @param pdfBuffer - Optional PDF buffer to include in hash calculation
+   * @returns Hash string prefixed with 0x
    */
-  generateDocumentHash(privateData: PrivateInvoiceData): string {
+  generateDocumentHash(privateData: PrivateInvoiceData, pdfBuffer?: Buffer): string {
     // Sort keys alphabetically for deterministic hashing
     const sortedData = {
       amount: privateData.amount.toString(),
@@ -91,8 +95,27 @@ class IPFSService {
     };
 
     const dataString = JSON.stringify(sortedData);
+    
+    // If PDF buffer is provided, include its hash in the calculation
+    // This ensures the documentHash changes if the PDF content changes
+    if (pdfBuffer) {
+      const pdfHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+      const combinedData = dataString + '|PDF:' + pdfHash;
+      const hash = crypto.createHash('sha256').update(combinedData).digest('hex');
+      return `0x${hash}`;
+    }
+
     const hash = crypto.createHash('sha256').update(dataString).digest('hex');
     return `0x${hash}`;
+  }
+
+  /**
+   * Generate SHA-256 hash of a PDF buffer
+   * @param pdfBuffer - PDF file buffer
+   * @returns Hash string
+   */
+  generatePdfHash(pdfBuffer: Buffer): string {
+    return crypto.createHash('sha256').update(pdfBuffer).digest('hex');
   }
 
   /**
@@ -249,17 +272,23 @@ class IPFSService {
 
   /**
    * Full workflow: Generate hash, create public metadata, upload to IPFS
+   * 
+   * @param privateData - Invoice private data
+   * @param riskScore - Risk score (0-100)
+   * @param pdfBuffer - Optional PDF buffer to include in hash calculation
    */
   async processInvoiceForIPFS(
     privateData: PrivateInvoiceData,
-    riskScore: number = 50
+    riskScore: number = 50,
+    pdfBuffer?: Buffer
   ): Promise<{
     documentHash: string;
     publicMetadata: PublicMetadata;
     ipfsResult: IPFSUploadResult;
+    pdfHash?: string;
   }> {
-    // Step 1: Generate deterministic document hash
-    const documentHash = this.generateDocumentHash(privateData);
+    // Step 1: Generate deterministic document hash (includes PDF if provided)
+    const documentHash = this.generateDocumentHash(privateData, pdfBuffer);
 
     // Step 2: Create public metadata (no private info)
     const publicMetadata = this.createPublicMetadata(privateData, documentHash, riskScore);
@@ -267,10 +296,14 @@ class IPFSService {
     // Step 3: Upload to IPFS
     const ipfsResult = await this.uploadToIPFS(publicMetadata);
 
+    // Step 4: Calculate separate PDF hash if buffer provided
+    const pdfHash = pdfBuffer ? this.generatePdfHash(pdfBuffer) : undefined;
+
     return {
       documentHash,
       publicMetadata,
       ipfsResult,
+      pdfHash,
     };
   }
 

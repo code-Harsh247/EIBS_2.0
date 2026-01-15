@@ -344,6 +344,118 @@ export class BlockchainService {
 
     return results;
   }
+
+  /**
+   * Sign a document hash with the admin private key
+   * Used for PDF-enhanced invoice verification
+   * 
+   * @param documentHash - The hash to sign (0x prefixed)
+   * @returns Signature object with signature, signer address, and timestamp
+   */
+  async signDocumentHash(documentHash: string): Promise<{
+    success: boolean;
+    signature?: string;
+    signerAddress?: string;
+    timestamp?: number;
+    error?: string;
+  }> {
+    try {
+      const isConnected = await this.initialize();
+
+      if (!isConnected || !this.wallet) {
+        // Simulation mode
+        const timestamp = Date.now();
+        const simulatedSignature = '0x' + CryptoJS.SHA256(documentHash + timestamp).toString() + 
+          CryptoJS.SHA256('simulation').toString().slice(0, 64);
+        
+        return {
+          success: true,
+          signature: simulatedSignature,
+          signerAddress: '0x' + CryptoJS.SHA256('simulation-address').toString().slice(0, 40),
+          timestamp,
+        };
+      }
+
+      const timestamp = Date.now();
+      
+      // Create message to sign: documentHash + timestamp
+      const messageHash = ethers.solidityPackedKeccak256(
+        ['bytes32', 'uint256'],
+        [documentHash, timestamp]
+      );
+
+      // Sign the message
+      const signature = await this.wallet.signMessage(ethers.getBytes(messageHash));
+      const signerAddress = await this.wallet.getAddress();
+
+      return {
+        success: true,
+        signature,
+        signerAddress,
+        timestamp,
+      };
+    } catch (error) {
+      console.error('Document signing error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Signing failed',
+      };
+    }
+  }
+
+  /**
+   * Verify a document hash signature
+   * 
+   * @param documentHash - The original hash that was signed
+   * @param signature - The signature to verify
+   * @param timestamp - The timestamp used in signing
+   * @returns Verification result with recovered signer address
+   */
+  async verifyDocumentSignature(
+    documentHash: string,
+    signature: string,
+    timestamp: number
+  ): Promise<{
+    isValid: boolean;
+    recoveredAddress?: string;
+    expectedAddress?: string;
+    error?: string;
+  }> {
+    try {
+      const isConnected = await this.initialize();
+
+      if (!isConnected || !this.wallet) {
+        // Simulation mode - always valid
+        return {
+          isValid: true,
+          recoveredAddress: '0x' + CryptoJS.SHA256('simulation-address').toString().slice(0, 40),
+          expectedAddress: '0x' + CryptoJS.SHA256('simulation-address').toString().slice(0, 40),
+        };
+      }
+
+      // Recreate the message hash
+      const messageHash = ethers.solidityPackedKeccak256(
+        ['bytes32', 'uint256'],
+        [documentHash, timestamp]
+      );
+
+      // Recover the signer address
+      const recoveredAddress = ethers.verifyMessage(ethers.getBytes(messageHash), signature);
+      const expectedAddress = await this.wallet.getAddress();
+
+      return {
+        isValid: recoveredAddress.toLowerCase() === expectedAddress.toLowerCase(),
+        recoveredAddress,
+        expectedAddress,
+      };
+    } catch (error) {
+      console.error('Signature verification error:', error);
+      return {
+        isValid: false,
+        error: error instanceof Error ? error.message : 'Verification failed',
+      };
+    }
+  }
 }
 
 // Export singleton instance
