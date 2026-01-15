@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:full": "node scripts/dev-with-listener.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -12,7 +13,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test:deposit": "node scripts/test-lp-deposit.js"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
@@ -20,6 +22,7 @@
     "bcryptjs": "^2.4.3",
     "crypto-js": "^4.2.0",
     "date-fns": "^3.3.1",
+    "dotenv": "^17.2.3",
     "ethers": "^6.11.0",
     "jsonwebtoken": "^9.0.2",
     "next": "^14.2.0",

@@ -36,7 +36,12 @@ function getProvider(): JsonRpcProvider {
   if (!BLOCKCHAIN_RPC_URL) {
     throw new Error('BLOCKCHAIN_RPC_URL not configured');
   }
-  return new ethers.JsonRpcProvider(BLOCKCHAIN_RPC_URL);
+  // Convert WebSocket URL to HTTP for JsonRpcProvider
+  const httpUrl = BLOCKCHAIN_RPC_URL.startsWith('wss://') 
+    ? BLOCKCHAIN_RPC_URL.replace('wss://', 'https://').replace('/ws/', '/v3/')
+    : BLOCKCHAIN_RPC_URL;
+  
+  return new ethers.JsonRpcProvider(httpUrl);
 }
 
 function getSigner(): Wallet {

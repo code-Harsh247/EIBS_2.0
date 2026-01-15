@@ -36,6 +36,7 @@ model User {
   createdInvoices   Invoice[]   @relation("InvoiceCreator")
   auditLogs         AuditLog[]
   sessions          Session[]
+  liquidityProvider LiquidityProvider?
 
   @@index([email])
   @@index([companyId])
@@ -304,4 +305,60 @@ enum AuditAction {
   LOAN_AUTHORIZED
   LOAN_REPAID
   LOAN_FUNDED
+}
+
+// ============================================
+// LIQUIDITY POOL
+// ============================================
+
+model LiquidityProvider {
+  id              String   @id @default(cuid())
+  userId          String?  @unique // Optional: link to registered User
+  user            User?    @relation(fields: [userId], references: [id])
+  walletAddress   String   @unique
+  
+  // Aggregated totals
+  totalDeposited  Decimal  @default(0) @db.Decimal(15, 6)
+  totalWithdrawn  Decimal  @default(0) @db.Decimal(15, 6)
+  currentShares   Decimal  @default(0) @db.Decimal(15, 6)
+  
+  // Earnings tracking
+  totalYieldEarned Decimal @default(0) @db.Decimal(15, 6)
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  transactions    LiquidityTransaction[]
+
+  @@index([walletAddress])
+  @@index([userId])
+}
+
+model LiquidityTransaction {
+  id          String              @id @default(cuid())
+  lpId        String
+  lp          LiquidityProvider   @relation(fields: [lpId], references: [id])
+  
+  type        LiquidityTxType
+  amount      Decimal             @db.Decimal(15, 6) // USDC amount
+  shares      Decimal             @db.Decimal(15, 6) // LP tokens
+  
+  // Blockchain details
+  txHash      String              @unique
+  blockNumber Int
+  
+  createdAt   DateTime            @default(now())
+
+  @@index([lpId])
+  @@index([txHash])
+  @@index([type])
+  @@index([createdAt])
+}
+
+enum LiquidityTxType {
+  DEPOSIT
+  WITHDRAW
+  YIELD_EARNED
 }

@@ -48,8 +48,14 @@ export class BlockchainService {
   private config: BlockchainConfig;
 
   constructor() {
+    // Convert WebSocket URL to HTTP for JsonRpcProvider
+    const rpcUrl = process.env.BLOCKCHAIN_RPC_URL || '';
+    const httpRpcUrl = rpcUrl.startsWith('wss://') 
+      ? rpcUrl.replace('wss://', 'https://').replace('/ws/', '/v3/')
+      : rpcUrl;
+    
     this.config = {
-      rpcUrl: process.env.BLOCKCHAIN_RPC_URL || '',
+      rpcUrl: httpRpcUrl,
       privateKey: process.env.PRIVATE_KEY || '',
       contractAddress: process.env.CONTRACT_ADDRESS || '',
       networkId: process.env.BLOCKCHAIN_NETWORK || 'sepolia',

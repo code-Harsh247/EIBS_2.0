@@ -16,6 +16,8 @@
 - [Liquidity Pool APIs](#liquidity-pool-apis)
 - [Audit Log APIs](#audit-log-apis)
 - [Health Check APIs](#health-check-apis)
+- [Settlement & Webhooks APIs](#settlement--webhooks-apis)
+- [Development APIs](#development-apis)
 - [Smart Contracts](#smart-contracts)
 
 ---
@@ -900,6 +902,181 @@ Preview withdrawal (shares to burn).
 
 ---
 
+### GET `/pool/my-position`
+Get LP position summary for a wallet address.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `address` (required) - Wallet address of the LP
+
+**Example:** `/api/pool/my-position?address=0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "walletAddress": "0x742d35cc6634c0532925a3b844bc9e7595f0beb1",
+    "hasPosition": true,
+    "position": {
+      "totalDeposited": "50000.000000",
+      "totalWithdrawn": "10000.000000",
+      "netDeposit": "40000.000000",
+      "dbShares": "39500.000000",
+      "currentShares": "39500.000000",
+      "currentValue": "41850.000000",
+      "maxWithdrawable": "41850.000000",
+      "gainLoss": "1850.000000",
+      "gainLossPercent": "4.63",
+      "depositCount": 5,
+      "withdrawCount": 1,
+      "firstDepositAt": "2026-01-10T12:00:00.000Z",
+      "lastActivity": "2026-01-15T18:30:00.000Z"
+    },
+    "recentTransactions": [
+      {
+        "id": "tx123",
+        "type": "DEPOSIT",
+        "amount": "10000.000000",
+        "shares": "9500.000000",
+        "txHash": "0x7a3f9e2b...",
+        "blockNumber": 12345678,
+        "createdAt": "2026-01-15T18:30:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### GET `/pool/my-deposits`
+Get all deposit transactions for a wallet address.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `address` (required) - Wallet address of the LP
+- `page` (optional) - Page number (default: 1)
+- `limit` (optional) - Items per page (default: 20)
+
+**Example:** `/api/pool/my-deposits?address=0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1&page=1&limit=10`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "tx123",
+      "amount": "10000.000000",
+      "shares": "9500.000000",
+      "txHash": "0x7a3f9e2b...",
+      "blockNumber": 12345678,
+      "timestamp": "2026-01-15T18:30:00.000Z",
+      "explorerUrl": "https://sepolia.etherscan.io/tx/0x7a3f9e2b..."
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 5,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+### GET `/pool/my-withdrawals`
+Get all withdrawal transactions for a wallet address.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `address` (required) - Wallet address of the LP
+- `page` (optional) - Page number (default: 1)
+- `limit` (optional) - Items per page (default: 20)
+
+**Example:** `/api/pool/my-withdrawals?address=0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "tx456",
+      "amount": "10000.000000",
+      "shares": "9200.000000",
+      "txHash": "0x8b4c1f3d...",
+      "blockNumber": 12350000,
+      "timestamp": "2026-01-16T10:00:00.000Z",
+      "explorerUrl": "https://sepolia.etherscan.io/tx/0x8b4c1f3d..."
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+### GET `/pool/transactions`
+Get all liquidity transactions (deposits + withdrawals) for a wallet address.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `address` (required) - Wallet address of the LP
+- `type` (optional) - Filter by type: `DEPOSIT` or `WITHDRAW`
+- `page` (optional) - Page number (default: 1)
+- `limit` (optional) - Items per page (default: 20)
+
+**Example:** `/api/pool/transactions?address=0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1&type=DEPOSIT`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "tx123",
+      "type": "DEPOSIT",
+      "amount": "10000.000000",
+      "shares": "9500.000000",
+      "txHash": "0x7a3f9e2b...",
+      "blockNumber": 12345678,
+      "timestamp": "2026-01-15T18:30:00.000Z",
+      "explorerUrl": "https://sepolia.etherscan.io/tx/0x7a3f9e2b..."
+    },
+    {
+      "id": "tx456",
+      "type": "WITHDRAW",
+      "amount": "5000.000000",
+      "shares": "4750.000000",
+      "txHash": "0x8b4c1f3d...",
+      "blockNumber": 12350000,
+      "timestamp": "2026-01-16T10:00:00.000Z",
+      "explorerUrl": "https://sepolia.etherscan.io/tx/0x8b4c1f3d..."
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 2,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
 ### POST `/pool/loans/fund`
 Fund an invoice (create loan).
 
@@ -1076,6 +1253,203 @@ Check API health status.
       "ipfs": "configured",
       "storage": "configured"
     }
+  }
+}
+```
+
+---
+
+## Settlement & Webhooks APIs
+
+### POST `/webhooks/settlement`
+Receive payment notifications from banking partners and trigger on-chain repayment.
+
+**Authentication:** Webhook secret via `x-webhook-secret` header
+
+**Required Header:**
+```
+x-webhook-secret: <WEBHOOK_SECRET>
+```
+
+**Request Body:**
+```json
+{
+  "vanId": "vLIQ-ACME-260115-001",
+  "amount": 1050000,
+  "currency": "USD",
+  "reference": "BANK-TXN-12345",
+  "timestamp": "2026-01-15T14:30:00.000Z"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `vanId` | string | ✅ | Virtual Account Number that received payment |
+| `amount` | number | ✅ | Amount in cents (smallest currency unit) |
+| `currency` | string | ✅ | Currency code (e.g., "USD") |
+| `reference` | string | ❌ | Bank transaction reference |
+| `timestamp` | string | ❌ | Payment timestamp (ISO 8601) |
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "invoice": {
+      "id": "clx123abc",
+      "invoiceNumber": "INV-2026-001",
+      "vanId": "vLIQ-ACME-260115-001"
+    },
+    "payment": {
+      "id": "clx456def",
+      "amount": "10500.00",
+      "currency": "USDC"
+    },
+    "loan": {
+      "tokenId": "42",
+      "principal": "10000.00",
+      "actualYield": "500.00"
+    },
+    "blockchain": {
+      "txHash": "0x123abc...",
+      "isSimulation": false
+    }
+  },
+  "message": "Settlement processed successfully"
+}
+```
+
+**Settlement Flow:**
+1. Validates `x-webhook-secret` header
+2. Looks up invoice by VAN using `BankingService.getInvoiceByVan()`
+3. Retrieves loan info via `documentHash` → `tokenId` mapping
+4. Calculates yield: `receivedAmount - principal`
+5. Executes `repayLoan(tokenId, actualYield)` on blockchain
+6. Updates database: `Invoice.paymentStatus = PAID`
+7. Creates `Payment` and `BlockchainTransaction` records
+
+**Error Responses:**
+- `401 Unauthorized` - Invalid or missing webhook secret
+- `400 Bad Request` - Missing required fields or invalid invoice state
+- `404 Not Found` - Invoice not found for VAN or no active loan
+- `500 Internal Server Error` - Blockchain or database error
+
+---
+
+### GET `/webhooks/settlement`
+Health check and documentation for the settlement webhook.
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "endpoint": "/api/webhooks/settlement",
+    "method": "POST",
+    "requiredHeaders": ["x-webhook-secret"],
+    "payloadFormat": {
+      "vanId": "string (required)",
+      "amount": "number (required, in cents)",
+      "currency": "string (required)",
+      "reference": "string (optional)",
+      "timestamp": "string (optional, ISO 8601)"
+    }
+  }
+}
+```
+
+---
+
+## Development APIs
+
+> ⚠️ **Warning:** These endpoints are disabled in production.
+
+### POST `/dev/simulate-payment`
+Simulate a bank payment for testing the settlement flow.
+
+**Environment:** Development only (disabled when `NODE_ENV=production`)
+
+**Request Body:**
+```json
+{
+  "invoiceId": "clx123abc",
+  "overrideAmount": 10500
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `invoiceId` | string | ✅ | ID of the invoice to simulate payment for |
+| `overrideAmount` | number | ❌ | Override payment amount in USDC (defaults to invoice.totalAmount) |
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "Payment simulated successfully",
+    "invoice": {
+      "id": "clx123abc",
+      "invoiceNumber": "INV-2026-001",
+      "vanId": "vLIQ-ACME-260115-001",
+      "seller": "Acme Corp",
+      "buyer": "Tech Solutions Inc"
+    },
+    "payment": {
+      "id": "clx789ghi",
+      "amount": 10500,
+      "currency": "USDC",
+      "reference": "SIMULATED:vLIQ-ACME-260115-001"
+    },
+    "loan": {
+      "tokenId": "42",
+      "principal": "10000.00",
+      "actualYield": "500.00",
+      "wasActive": true
+    },
+    "blockchain": {
+      "txHash": "0xsim_dev_...",
+      "isSimulation": true,
+      "reason": "Blockchain not configured or loan not active"
+    },
+    "devNote": "⚠️ This is a DEV endpoint - disabled in production"
+  }
+}
+```
+
+**Prerequisites:**
+- Invoice must exist
+- Invoice must have VAN assigned (status = APPROVED)
+- Invoice `paymentStatus` must not be `PAID`
+
+**Error Responses:**
+- `403 Forbidden` - Endpoint disabled in production
+- `400 Bad Request` - Invoice not approved or missing VAN
+- `404 Not Found` - Invoice not found
+
+---
+
+### GET `/dev/simulate-payment`
+Documentation for the simulate payment endpoint.
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "endpoint": "/api/dev/simulate-payment",
+    "status": "enabled",
+    "environment": "development",
+    "method": "POST",
+    "description": "Simulates a bank payment for testing the settlement flow",
+    "prerequisites": [
+      "Invoice must exist",
+      "Invoice must have VAN assigned (approved status)",
+      "Invoice paymentStatus must not be PAID"
+    ]
   }
 }
 ```

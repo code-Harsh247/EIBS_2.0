@@ -2,10 +2,14 @@ import { prisma } from '../lib/prisma';
 import { Prisma, InvoiceStatus, PaymentStatus } from '@prisma/client';
 import { CreateInvoiceInput, UpdateInvoiceInput, InvoiceFilterInput } from '../lib/validations';
 
-// Generate unique invoice number
-export async function generateInvoiceNumber(): Promise<string> {
+// Generate unique invoice number with retry logic
+export async function generateInvoiceNumber(retryCount = 0): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `INV-${year}-`;
+  
+  // Add timestamp component for uniqueness
+  const timestamp = Date.now().toString().slice(-3); // Last 3 digits of timestamp
+  const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
   
   const lastInvoice = await prisma.invoice.findFirst({
     where: {
@@ -23,6 +27,9 @@ export async function generateInvoiceNumber(): Promise<string> {
     const lastNumber = parseInt(lastInvoice.invoiceNumber.split('-').pop() || '0', 10);
     nextNumber = lastNumber + 1;
   }
+
+  // Add retry offset if this is a retry
+  nextNumber += retryCount;
 
   return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
 }
@@ -66,56 +73,66 @@ export function calculateInvoiceTotals(items: Array<{
 export async function createInvoice(
   input: CreateInvoiceInput,
   sellerId: string,
-  createdById: string
-) {
-  const invoiceNumber = input.invoiceNumber || await generateInvoiceNumber();
-  
-  const { items, subtotal, taxAmount, discountAmount, totalAmount } = calculateInvoiceTotals(
-    input.items,
-    input.discountAmount
-  );
+  createdById: string,
+  retryCount = 0
+): Promise<any> {
+  try {
+    const invoiceNumber = input.invoiceNumber || await generateInvoiceNumber(retryCount);
+    
+    const { items, subtotal, taxAmount, discountAmount, totalAmount } = calculateInvoiceTotals(
+      input.items,
+      input.discountAmount
+    );
 
-  return prisma.invoice.create({
-    data: {
-      invoiceNumber,
-      sellerId,
-      buyerId: input.buyerId,
-      createdById,
-      issueDate: input.issueDate,
-      dueDate: input.dueDate,
-      currency: input.currency,
-      notes: input.notes,
-      terms: input.terms,
-      subtotal,
-      taxAmount,
-      discountAmount,
-      totalAmount,
-      items: {
-        create: items.map((item) => ({
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          taxRate: item.taxRate,
-          amount: item.amount,
-          productCode: item.productCode,
-          unit: item.unit,
-        })),
-      },
-    },
-    include: {
-      items: true,
-      seller: true,
-      buyer: true,
-      createdBy: {
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
+    return await prisma.invoice.create({
+      data: {
+        invoiceNumber,
+        sellerId,
+        buyerId: input.buyerId,
+        createdById,
+        issueDate: input.issueDate,
+        dueDate: input.dueDate,
+        currency: input.currency,
+        notes: input.notes,
+        terms: input.terms,
+        subtotal,
+        taxAmount,
+        discountAmount,
+        totalAmount,
+        items: {
+          create: items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            taxRate: item.taxRate,
+            amount: item.amount,
+            productCode: item.productCode,
+            unit: item.unit,
+          })),
         },
       },
-    },
-  });
+      include: {
+        items: true,
+        seller: true,
+        buyer: true,
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+  } catch (error: any) {
+    // Retry on unique constraint violation (P2002)
+    if (error.code === 'P2002' && error.meta?.target?.includes('invoiceNumber') && retryCount < 3) {
+      console.log(`Invoice number collision, retrying... (attempt ${retryCount + 1})`);
+      return createInvoice(input, sellerId, createdById, retryCount + 1);
+    }
+    throw error;
+  }
 }
 
 // Get invoice by ID
