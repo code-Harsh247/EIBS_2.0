@@ -134,6 +134,12 @@ model Invoice {
   notes           String?
   terms           String?
   
+  // Split Metadata Privacy Architecture
+  documentHash      String?       @unique  // SHA-256 hash of private data (for blockchain integrity)
+  riskScore         Int?                   // Verification/risk score (0-100, lower is better)
+  publicMetadataURI String?                // IPFS URI for public metadata (no private info)
+  vanId             String?                // Virtual Account Number for fiat settlement
+  
   // Blockchain
   blockchainHash  String?
   blockchainTxId  String?
@@ -154,6 +160,7 @@ model Invoice {
   @@index([buyerId])
   @@index([status])
   @@index([createdAt])
+  @@index([documentHash])
 }
 
 model InvoiceItem {
