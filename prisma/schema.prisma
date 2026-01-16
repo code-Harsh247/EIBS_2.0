@@ -83,6 +83,14 @@ model Company {
   logoUrl         String?
   isActive        Boolean       @default(true)
   
+  // KYB Verification (Hackathon simplified)
+  isKYBVerified      Boolean   @default(false)
+  kybVerifiedAt      DateTime?
+  verificationLevel  String?   @default("STANDARD") // BASIC, STANDARD, PREMIUM
+  registrationNumber String?   // Business registration number for KYB
+  businessEmail      String?   // KYB contact email
+  businessPhone      String?   // KYB contact phone
+  
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -96,6 +104,7 @@ model Company {
 
   @@index([registrationNo])
   @@index([name])
+  @@index([walletAddress])
 }
 
 // ============================================

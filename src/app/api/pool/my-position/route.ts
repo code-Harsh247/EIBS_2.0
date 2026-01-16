@@ -1,27 +1,25 @@
 /**
  * GET /api/pool/my-position
  * 
- * Get LP position summary for the authenticated user's wallet address
+ * Get LP position summary for a wallet address
+ * Authentication is optional - useful for public LP dashboards
  */
 
 import { NextRequest } from 'next/server';
 import { extractTokenFromHeader, getUserFromToken } from '@/lib/auth';
-import { successResponse, errorResponse, unauthorizedResponse, handleError } from '@/lib/api-response';
+import { successResponse, errorResponse, handleError } from '@/lib/api-response';
 import { prisma } from '@/lib/prisma';
 import { liquidityPoolService } from '@/services/liquidity-pool';
 
 export async function GET(request: NextRequest) {
   try {
+    // Optional authentication
     const authHeader = request.headers.get('authorization');
     const token = extractTokenFromHeader(authHeader);
-
-    if (!token) {
-      return unauthorizedResponse('No token provided');
-    }
-
-    const user = await getUserFromToken(token);
-    if (!user) {
-      return unauthorizedResponse('Invalid token');
+    let user = null;
+    
+    if (token) {
+      user = await getUserFromToken(token);
     }
 
     // Get wallet address from query param
